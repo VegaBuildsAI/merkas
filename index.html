@@ -119,6 +119,13 @@ h2{font-size:64px;line-height:1.1;font-weight:700;letter-spacing:-.01em;max-widt
 .dots{display:flex;gap:8px;padding:0 4px}
 .dots button{width:10px;height:10px;border-radius:50%;border:0;background:var(--line);padding:0}
 .dots button[aria-current="true"]{background:var(--orange);width:26px;border-radius:6px}
+@media (max-height: 520px){
+  .nav{bottom:4px;padding:2px 4px;gap:4px}
+  .nav button.arrow{width:30px;height:30px;font-size:18px}
+  .dots{gap:6px}
+  .dots button{width:7px;height:7px}
+  .dots button[aria-current="true"]{width:18px}
+}
 body.idle .nav{opacity:.25}
 body.idle .nav:hover{opacity:1}
 
@@ -198,12 +205,12 @@ body.stack .demo-btn.sm{font-size:14px}
 /* Phones in landscape: the panel must fit the short viewport height */
 @media (orientation: landscape) and (max-height: 520px){
   .demo-panel{width:min(94vw,calc((100dvh - 84px) * 16 / 9))}
-  html body.stack .demo-head{padding:4px 8px 4px 14px}
-  html body.stack .demo-title{font-size:14px}
-  html body.stack .demo-size{width:32px;height:32px;font-size:18px}
-  html body.stack .demo-close{padding:5px 12px;font-size:14px}
-  html body.stack .demo-title small,html body.stack #demoDesc{display:none}
-  html body.stack .demo-cap{padding:4px 16px;font-size:11px}
+  html body .demo-head{padding:4px 8px 4px 14px}
+  html body .demo-title{font-size:14px}
+  html body .demo-size{width:32px;height:32px;font-size:18px}
+  html body .demo-close{padding:5px 12px;font-size:14px}
+  html body .demo-title small,html body #demoDesc{display:none}
+  html body .demo-cap{padding:4px 16px;font-size:11px}
 }
 
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
@@ -358,7 +365,7 @@ body.stack .demo-btn.sm{font-size:14px}
   const backdrop = document.getElementById('backdrop');
   const img = document.getElementById('demoImg');
   const closeBtn = document.getElementById('closeBtn');
-  const stackMq = matchMedia('(max-width: 820px), (orientation: portrait) and (max-width: 1100px), (max-height: 520px)');
+  const stackMq = matchMedia('(orientation: portrait) and (max-width: 1100px), (max-width: 820px) and (min-height: 521px)');
   let current = 0;
 
   // ---------- Layout mode ----------
@@ -504,11 +511,30 @@ body.stack .demo-btn.sm{font-size:14px}
     clampPos(s.left, s.top);
   });
 
-  addEventListener('resize', () => { fit(); if (openBtn) center(); });
+  // Re-evaluate layout on any viewport change (rotation fires these on real phones)
+  function relayout() {
+    const wasStack = body.classList.contains('stack');
+    // In stacked mode, remember the slide being read so rotating keeps the place
+    if (wasStack) {
+      const mid = innerHeight / 3;
+      const i = slides.findIndex(sl => { const r = sl.getBoundingClientRect(); return r.top <= mid && r.bottom > mid; });
+      if (i >= 0) current = i;
+    }
+    fit();
+    const nowStack = body.classList.contains('stack');
+    if (wasStack !== nowStack) {
+      go(current, !nowStack);
+      if (nowStack) slides[current].scrollIntoView();
+    }
+    if (openBtn) center();
+  }
+  addEventListener('resize', relayout);
+  addEventListener('orientationchange', () => setTimeout(relayout, 150));
+  if (window.visualViewport) visualViewport.addEventListener('resize', relayout);
 
   // ---------- Init ----------
   fit();
-  stackMq.addEventListener('change', () => { fit(); go(current, false); });
+  stackMq.addEventListener('change', relayout);
   addEventListener('hashchange', () => {
     const n = parseInt(location.hash.slice(1), 10);
     if (Number.isFinite(n) && n - 1 !== current) go(n - 1, false);
